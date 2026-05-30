@@ -262,7 +262,21 @@
         .faction-option.selected-moon { background: #88aaff22; border-color: #88aaff; color: #bbddff; }
         .faction-option.selected-equal { background: #44aa8822; border-color: #66ddbb; color: #aaffdd; }
         .sync-btn { background: linear-gradient(95deg, #ff3366, #aa22aa); border: none; padding: 0.7rem; border-radius: 60px; font-weight: bold; font-size: 0.9rem; color: white; width: 100%; margin-top: 1.5rem; cursor: pointer; }
-        /* 管理层模态框 - 带详情展开 */
+        .copy-btn {
+            background: #2a1a3a;
+            border: 1px solid #ff6699;
+            padding: 0.6rem;
+            border-radius: 60px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: #ffccaa;
+            width: 100%;
+            margin-top: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .copy-btn:hover { background: #ff3366; color: #000; box-shadow: 0 0 12px #ff3366; }
+        /* 管理层模态框 */
         .admin-modal, .query-result-modal {
             display: none;
             position: fixed;
@@ -450,6 +464,7 @@
                                 <div class="field-group full-width"><div class="field-label">备注</div><textarea id="notes" rows="2" placeholder="其他补充"></textarea></div>
                             </div>
                             <button type="button" id="submitBtn" class="sync-btn"><i class="fas fa-sync-alt"></i> 同步至秩序协议 · 登记户籍</button>
+                            <button type="button" id="copyContentBtn" class="copy-btn"><i class="fas fa-copy"></i> 复制全部内容</button>
                         </form>
                     </div>
                 </div>
@@ -484,6 +499,7 @@
         agreeCheckbox.addEventListener('change', updateAgreeButton);
         if (sessionStorage.getItem('declarationAgreed') === 'true') { overlayDiv.style.display = 'none'; mainContentDiv.style.display = 'block'; }
         agreeBtn.addEventListener('click', () => { if (agreeCheckbox.checked) { sessionStorage.setItem('declarationAgreed', 'true'); overlayDiv.style.display = 'none'; mainContentDiv.style.display = 'block'; } else alert('请先勾选同意'); });
+        
         // 悬浮群规
         const rulesFloat = document.getElementById('rulesFloatBtn');
         const rulesModal = document.getElementById('rulesModal');
@@ -496,9 +512,21 @@
         const STORAGE_KEY = 'solisNoxCharacters';
         function getAllCharacters() { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
         function saveAllCharacters(chars) { localStorage.setItem(STORAGE_KEY, JSON.stringify(chars)); }
-        function saveCharacter(data) { let chars = getAllCharacters(); chars.push({ id: Date.now(), timestamp: new Date().toISOString(), status: 'pending', failReason: '', ...data }); saveAllCharacters(chars); }
+        function saveCharacter(data) { let chars = getAllCharacters(); chars.push({ id: Date.now(), timestamp: new Date().toISOString(), status: 'pending', auditHistory: [], ...data }); saveAllCharacters(chars); }
         function deleteCharacter(index) { let chars = getAllCharacters(); chars.splice(index, 1); saveAllCharacters(chars); renderAdminRecords(); }
-        function updateRecordStatus(index, newStatus, reason) { let chars = getAllCharacters(); if(chars[index]) { chars[index].status = newStatus; if(newStatus === 'fail') chars[index].failReason = reason; else chars[index].failReason = ''; saveAllCharacters(chars); renderAdminRecords(); } }
+        function addAuditRecord(index, action, reason = '') {
+            let chars = getAllCharacters();
+            if (!chars[index].auditHistory) chars[index].auditHistory = [];
+            chars[index].auditHistory.push({
+                time: new Date().toLocaleString(),
+                action: action, // 'pass' or 'fail'
+                reason: reason
+            });
+            if (action === 'pass') chars[index].status = 'pass';
+            else if (action === 'fail') chars[index].status = 'fail';
+            saveAllCharacters(chars);
+            renderAdminRecords();
+        }
         function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m=> m==='&'?'&amp;': m==='<'?'&lt;': '&gt;'); }
         
         // 管理层渲染：带折叠详情
@@ -511,7 +539,6 @@
                 let statusText = rec.status === 'pending' ? '待审核' : (rec.status === 'pass' ? '已通过' : '未通过');
                 let statusColor = rec.status==='pass' ? '#88ff88' : (rec.status==='fail' ? '#ff8888' : '#ffaa66');
                 let attrStr = rec.属性 ? `${rec.属性.main} ${rec.属性.s ? 'S' : ''}${rec.属性.m ? 'M' : ''}` : '无';
-                // 构建详情HTML
                 let detailHtml = `
                     <div class="record-detail" id="detail-${idx}" style="display:none;">
                         <p><strong>📝 完整资料</strong></p>
@@ -567,12 +594,12 @@
                 });
             });
             // 绑定操作按钮
-            document.querySelectorAll('.pass-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = btn.getAttribute('data-idx'); updateRecordStatus(parseInt(idx), 'pass', ''); }));
-            document.querySelectorAll('.fail-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = btn.getAttribute('data-idx'); const reason = prompt('请输入不通过的原因（UP原因）:'); if(reason && reason.trim()) updateRecordStatus(parseInt(idx), 'fail', reason.trim()); else if(reason !== null) alert('必须填写原因'); }));
+            document.querySelectorAll('.pass-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = btn.getAttribute('data-idx'); addAuditRecord(parseInt(idx), 'pass', ''); }));
+            document.querySelectorAll('.fail-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = btn.getAttribute('data-idx'); const reason = prompt('请输入不通过的原因（UP原因）:'); if(reason && reason.trim()) addAuditRecord(parseInt(idx), 'fail', reason.trim()); else if(reason !== null) alert('必须填写原因'); }));
             document.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = btn.getAttribute('data-idx'); if(confirm('确定要永久删除这条记录吗？')) deleteCharacter(parseInt(idx)); }));
         }
         
-        // 用户查询审核结果
+        // 用户查询审核结果（展示所有审批历史，若最终状态为通过则显示群号和链接）
         function showQueryModal() {
             const codename = prompt("请输入您的户籍代号（提交时填写的代号）:");
             if(!codename) return;
@@ -580,22 +607,79 @@
             if(!record) { alert("未找到该代号的户籍记录，请确认代号是否正确。"); return; }
             const modal = document.getElementById('queryResultModal');
             const content = document.getElementById('queryResultContent');
+            let historyHtml = '';
+            if (record.auditHistory && record.auditHistory.length > 0) {
+                historyHtml = '<div style="margin-top:1rem; text-align:left; border-top:1px solid #ff6699; padding-top:0.8rem;"><strong>📋 审核记录：</strong><ul style="margin-top:0.5rem; list-style:none;">';
+                record.auditHistory.forEach(h => {
+                    let resultText = h.action === 'pass' ? '✅ 通过' : '❌ 不通过';
+                    historyHtml += `<li>${h.time} | ${resultText}${h.reason ? ' | 原因：' + escapeHtml(h.reason) : ''}</li>`;
+                });
+                historyHtml += '</ul></div>';
+            } else {
+                historyHtml = '<div style="margin-top:1rem;">暂无审核记录，请耐心等待。</div>';
+            }
             if(record.status === 'pending') {
-                content.innerHTML = `<i class="fas fa-hourglass-half"></i> 您的档案正在审核中，请耐心等待管理层批复。`;
+                content.innerHTML = `<i class="fas fa-hourglass-half"></i> 当前状态：待审核。${historyHtml}`;
             } else if(record.status === 'pass') {
                 content.innerHTML = `<i class="fas fa-check-circle" style="color:#33cc99;"></i> 恭喜！您的户籍已通过审核。<br>
                                     欢迎加入秩序协议社群：<br>
                                     <strong>群号：1105074890</strong><br>
                                     <a href="https://qm.qq.com/q/q5NT1oQJIA" target="_blank" style="color:#33ccff;">点击链接加入群聊【缚隐丨主水一体】</a><br>
-                                    <span style="font-size:0.7rem;">请复制链接或搜索群号加入</span>`;
+                                    <span style="font-size:0.7rem;">请复制链接或搜索群号加入</span>
+                                    ${historyHtml}`;
             } else {
                 content.innerHTML = `<i class="fas fa-times-circle" style="color:#ff6699;"></i> 您的户籍未通过审核。<br>
-                                    原因：${escapeHtml(record.failReason || '无')}<br>
+                                    ${historyHtml}<br>
                                     您可重新登记并等待下一次核验。`;
             }
             modal.style.display = 'flex';
         }
         document.getElementById('closeQueryModalBtn')?.addEventListener('click', () => { document.getElementById('queryResultModal').style.display = 'none'; });
+        
+        // 复制全部内容
+        function copyFormContent() {
+            const name = document.getElementById('name').value.trim();
+            const age = document.getElementById('age').value;
+            const height = document.getElementById('height').value.trim();
+            const weight = document.getElementById('weight').value.trim();
+            const identity = document.getElementById('identity').value.trim();
+            const codename = document.getElementById('codename').value.trim();
+            const personality = document.getElementById('personality').value.trim();
+            const appearance = document.getElementById('appearance').value.trim();
+            const attire = document.getElementById('attire').value.trim();
+            const background = document.getElementById('background').value.trim();
+            const likes = document.getElementById('likes').value.trim();
+            const dislikes = document.getElementById('dislikes').value.trim();
+            const notes = document.getElementById('notes').value.trim();
+            const faction = document.getElementById('faction').value;
+            let factionText = faction === 'sun' ? '太阳方 · 等级掠夺派' : (faction === 'moon' ? '月亮方 · 暗涌怀柔' : '平权·第三把火');
+            let attrMain = document.querySelector('input[name="attrMain"]:checked');
+            let attrValue = attrMain ? attrMain.value : '未选';
+            let sChecked = document.getElementById('ckS').checked;
+            let mChecked = document.getElementById('ckM').checked;
+            let attrSM = sChecked ? 'S' : (mChecked ? 'M' : '无');
+            let contentStr = `===== 户籍登记内容 =====
+姓名：${name}
+年龄：${age}
+身高/体重：${height}/${weight}
+阵营：${factionText}
+身份：${identity}
+代号：${codename}
+属性：${attrValue} ${attrSM !== '无' ? attrSM : ''}
+性格：${personality}
+外貌：${appearance}
+衣着：${attire}
+背景：${background}
+喜：${likes}
+恶：${dislikes}
+备注：${notes}
+=========================`;
+            navigator.clipboard.writeText(contentStr).then(() => {
+                alert('已复制全部内容到剪贴板');
+            }).catch(() => {
+                alert('复制失败，请手动复制');
+            });
+        }
         
         // 属性获取与校验
         function getAttributes() {
@@ -674,6 +758,7 @@
         document.getElementById('backToGatewayBtn')?.addEventListener('click', () => { gatewayPanel.style.display = 'flex'; registryFormContainer.style.display = 'none'; });
         document.getElementById('checkStatusBtn')?.addEventListener('click', showQueryModal);
         document.getElementById('submitBtn')?.addEventListener('click', (e) => { e.preventDefault(); submitRegistration(); });
+        document.getElementById('copyContentBtn')?.addEventListener('click', copyFormContent);
         
         // 管理层密码
         const ADMIN_PASSWORD = "SolisNoxAdmin8474";
