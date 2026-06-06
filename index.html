@@ -2580,6 +2580,38 @@ textarea { min-height: 92px; resize: vertical; }
     }
 </style>
 
+
+<style id="sn-registry-login-tall-refine">
+    /* 户籍登记入口：加长 LOGIN IN 背景图区域，仅改视觉高度，不动功能 */
+    #gatewayPanel.gateway-container {
+        min-height: clamp(500px, 58vh, 680px) !important;
+        padding-top: 44px !important;
+        padding-bottom: 44px !important;
+        background-position: center 38% !important;
+    }
+    #gatewayPanel.gateway-container::before {
+        opacity: .82 !important;
+    }
+    #gatewayPanel.gateway-container .gateway-btn {
+        margin-top: 8px !important;
+        margin-bottom: 8px !important;
+    }
+    @media (max-width: 800px) {
+        #gatewayPanel.gateway-container {
+            min-height: min(72vh, 620px) !important;
+            padding-top: 48px !important;
+            padding-bottom: 48px !important;
+            background-size: cover !important;
+            background-position: center 36% !important;
+        }
+    }
+    @media (max-width: 420px) {
+        #gatewayPanel.gateway-container {
+            min-height: 560px !important;
+        }
+    }
+</style>
+
 </head>
 <body>
     <!-- 强制声明浮层（完整长篇群规） -->
@@ -2771,7 +2803,7 @@ textarea { min-height: 92px; resize: vertical; }
             <button id="nextBtn" class="nav-btn">下一纪事 <i class="fas fa-arrow-right"></i></button>
             <button id="adminPortalBtn" class="nav-btn admin-btn"><i class="fas fa-crown"></i> 管理层 · 户籍核验</button>
         </div>
-        <div class="footer-note"><i class="fas fa-dragon"></i> SOLIS NOX · 秩序协议终端 <i class="fas fa-dragon"></i><br> █ 户籍信息仅限管理层调阅，同步即归档至黑石碑。</div>
+        <div class="footer-note"><i class="fas fa-dragon"></i> SOLIS NOX · 秩序协议终端 <i class="fas fa-dragon"></i><br> █ 户籍信息仅限管理层调阅。</div>
     </div>
 
     <!-- 悬浮群规按钮 -->
